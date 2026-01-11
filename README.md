@@ -20,10 +20,13 @@ Research Pipeline Studio is a local-first, stepwise research-to-paper system wit
 ## Quick Start
 
 ```bash
+make doctor
 make dev
 ```
 
 The backend runs at `http://localhost:8000` and the frontend at `http://localhost:5173`.
+
+Health check: `GET http://localhost:8000/api/health`
 
 ## Environment Variables
 
@@ -56,4 +59,3 @@ export ANTHROPIC_MODEL=claude-3-5-sonnet-20240620 # optional
 
 - The execution layer enforces an explicit plan + approval before any command runs.
 - PDF export requires `latexmk` installed. If unavailable, the system provides `.tex` exports.
-

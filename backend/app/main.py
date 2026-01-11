@@ -51,6 +51,11 @@ def on_startup() -> None:
     init_db()
 
 
+@app.get("/api/health")
+def health_check() -> Dict[str, str]:
+    return {"status": "ok"}
+
+
 @app.post("/api/projects", response_model=ProjectRead)
 def create_project(payload: ProjectCreate, session: Session = Depends(get_session)):
     project = Project(name=payload.name, description=payload.description)
