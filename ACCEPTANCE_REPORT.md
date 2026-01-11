@@ -3,7 +3,7 @@
 Date: 2026-01-08
 
 ## Summary
-Overall status: **NO-GO** — implementation does not fully satisfy the spec. Multiple core requirements are partial or missing, including UI step editing/rollback, execution safety for SSH/Slurm, experiment ingestion, and full guardrails.
+Overall status: **NO-GO** — implementation does not fully satisfy the spec. Multiple core requirements are partial or missing, including UI step editing/rollback, execution safety for SSH/Slurm, and full guardrails.
 
 ---
 
@@ -153,25 +153,16 @@ Overall status: **NO-GO** — implementation does not fully satisfy the spec. Mu
 ---
 
 ## G. Experiment ingestion
-**Status:** FAIL
+**Status:** PASS
 
 **Evidence**
-- Upload endpoint exists but only stores files; no normalization or metrics/tables/figures generation.【F:backend/app/main.py†L282-L304】
-- No ingestion pipeline or artifact generators in backend.
-
-**Missing**
-- No ingestion-first Part 4 flow.
-- No `metrics.json` generation from uploads or execution outputs.
-- No tables/figures generation, no `results_summary.md`.
+- Ingestion endpoint parses CSV/JSON, stores uploads, and generates metrics/table/figure/summary artifacts.【F:backend/app/main.py†L303-L320】【F:backend/app/ingestion.py†L14-L113】
+- Part 4 UI includes upload + ingest controls and lists generated artifacts.【F:frontend/src/App.tsx†L176-L304】
+- Demo CSV included with usage notes.【F:examples/demo-project/README.md†L1-L17】
 
 **Reproduction Steps**
-1. `POST /api/projects/{id}/upload` with CSV/JSON.
-2. Confirm no `metrics.json` or `tables/*.tex`/`figures/*.png` generated.
-
-**Minimal Remediation**
-- Implement ingestion service that parses uploaded/collected outputs into `metrics.json`.
-- Generate `tables/*.tex`, `figures/*.png`, and `results_summary.md` in Part 4.
-- Gate Final results on presence of these artifacts.
+1. `POST /api/projects/{id}/ingest` with a CSV/JSON file.
+2. Confirm generated artifacts in `GET /api/projects/{id}/artifacts`.
 
 ---
 
@@ -190,4 +181,4 @@ Overall status: **NO-GO** — implementation does not fully satisfy the spec. Mu
 ---
 
 # Overall GO/NO-GO Decision
-**NO-GO** — core execution, ingestion, and UI requirements are incomplete.
+**NO-GO** — core execution and UI requirements are incomplete.

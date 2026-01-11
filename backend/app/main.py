@@ -6,13 +6,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from .config import PROJECTS_DIR
 from .database import get_session, init_db
 from .execution import get_runner
+from .ingestion import ingest_metrics
 from .models import AuditLog, Execution, ExecutionPlan, Project, StepRun, StepState
 from .schemas import (
     ArtifactListing,
@@ -329,6 +330,21 @@ def upload_artifacts(
         dest_path.write_bytes(uploaded.file.read())
         stored.append(str(dest_path.relative_to(dest_dir)))
     return UploadResponse(stored=stored)
+
+
+@app.post("/api/projects/{project_id}/ingest")
+def ingest_project_metrics(
+    project_id: int,
+    file: UploadFile = File(...),
+    label: str | None = Form(default=None),
+):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="File required")
+    try:
+        paths = ingest_metrics(project_id, file.filename, file.file.read(), label)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"artifacts": paths}
 
 
 @app.get("/api/projects/{project_id}/artifacts", response_model=ArtifactListing)

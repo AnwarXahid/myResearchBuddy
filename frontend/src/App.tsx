@@ -36,6 +36,10 @@ function App() {
   const [planWarnings, setPlanWarnings] = useState<string[]>([])
   const [execStatus, setExecStatus] = useState<string>('')
   const [execLogs, setExecLogs] = useState<string>('')
+  const [ingestFile, setIngestFile] = useState<File | null>(null)
+  const [ingestLabel, setIngestLabel] = useState('')
+  const [ingestArtifacts, setIngestArtifacts] = useState<string[]>([])
+  const [ingestStatus, setIngestStatus] = useState('')
 
   const canRun = useMemo(() => activeProject !== null, [activeProject])
 
@@ -146,6 +150,30 @@ function App() {
     setExecLogs(`${logsData.stdout}\\n${logsData.stderr}`)
   }
 
+  const ingestMetrics = async () => {
+    if (!activeProject || !ingestFile) return
+    const formData = new FormData()
+    formData.append('file', ingestFile)
+    if (ingestLabel) {
+      formData.append('label', ingestLabel)
+    }
+    const res = await fetch(`/api/projects/${activeProject.id}/ingest`, {
+      method: 'POST',
+      body: formData
+    })
+    if (!res.ok) {
+      const error = await res.json()
+      setIngestStatus(error.detail || 'Ingestion failed')
+      return
+    }
+    const data = await res.json()
+    setIngestArtifacts(data.artifacts || [])
+    setIngestStatus('Ingestion complete')
+    const artifactsRes = await fetch(`/api/projects/${activeProject.id}/artifacts`)
+    const artifactsData = await artifactsRes.json()
+    setArtifacts(artifactsData.files ?? [])
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -247,6 +275,28 @@ function App() {
             </ul>
           </div>
         </div>
+        {selectedStep === 'part4' && (
+          <div className="card">
+            <h4>Part 4 Ingestion</h4>
+            <label>Upload CSV/JSON</label>
+            <input
+              type="file"
+              accept=".csv,.json"
+              onChange={(e) => setIngestFile(e.target.files?.[0] ?? null)}
+            />
+            <label>Label (optional)</label>
+            <input value={ingestLabel} onChange={(e) => setIngestLabel(e.target.value)} />
+            <button style={{ marginTop: 8 }} onClick={ingestMetrics}>
+              Ingest
+            </button>
+            <div style={{ marginTop: 8 }}>{ingestStatus}</div>
+            <ul>
+              {ingestArtifacts.map((artifact) => (
+                <li key={artifact}>{artifact}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="card">
           <h4>Execution (Plan → Approve → Run)</h4>
           <label>Runner</label>

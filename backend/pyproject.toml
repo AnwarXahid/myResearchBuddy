@@ -13,6 +13,7 @@ dependencies = [
   "jinja2>=3.1",
   "paramiko>=3.4",
   "rich>=13.7",
+  "matplotlib>=3.9",
 ]
 
 [project.optional-dependencies]
