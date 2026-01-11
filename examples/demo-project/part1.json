@@ -1,0 +1,7 @@
+{
+  "polished_problem_statement": "Demo statement.",
+  "contribution_hypotheses": ["H1", "H2", "H3"],
+  "paper_type_decision": "Empirical study",
+  "related_work_candidates": [],
+  "risks_and_unknowns": ["Risk A"]
+}

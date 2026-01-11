@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Research Pipeline Studio</title>
+    <style>
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+        margin: 0;
+        background: #f5f7fb;
+        color: #1f2933;
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 260px;
+        background: #0f172a;
+        color: white;
+        padding: 24px;
+      }
+      .content {
+        flex: 1;
+        padding: 24px;
+      }
+      .card {
+        background: white;
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        margin-bottom: 16px;
+      }
+      .stepper {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .step {
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        font-size: 12px;
+      }
+      button {
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      input, select, textarea {
+        width: 100%;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+      }
+      label { font-size: 12px; font-weight: 600; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .tabs { display: flex; gap: 8px; }
+      .tab { padding: 6px 12px; background: #e2e8f0; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
