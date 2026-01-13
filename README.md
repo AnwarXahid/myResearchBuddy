@@ -60,6 +60,15 @@ export ANTHROPIC_MODEL=claude-3-5-sonnet-20240620 # optional
 - The execution layer enforces an explicit plan + approval before any command runs.
 - PDF export requires `latexmk` installed. If unavailable, the system provides `.tex` exports.
 
+## LaTeX/PDF Export Setup
+
+Install `latexmk`:
+
+- macOS (Homebrew): `brew install latexmk`
+- Ubuntu/Debian: `sudo apt-get install latexmk texlive-full`
+
+PDF export attempts `latexmk` automatically. If it is missing, the UI shows a warning and the LaTeX zip download remains available.
+
 ## How to verify Task 3 (Guardrails)
 
 1. Start the app: `make dev`.

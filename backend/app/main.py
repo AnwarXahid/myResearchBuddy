@@ -4,6 +4,7 @@ import difflib
 import json
 from datetime import datetime
 from pathlib import Path
+import zipfile
 from typing import Any, Dict, List
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
@@ -392,7 +393,7 @@ def read_artifact_file(project_id: int, path: str):
     return FileResponse(str(target))
 
 
-@app.get("/api/projects/{project_id}/export/latex", response_model=ExportResponse)
+@app.get("/api/projects/{project_id}/export/latex")
 def export_latex(project_id: int):
     project_path = PROJECTS_DIR / f"project_{project_id}" / "artifacts"
     latex_dir = project_path / "latex"
@@ -400,27 +401,37 @@ def export_latex(project_id: int):
     main_tex = latex_dir / "main.tex"
     if not main_tex.exists():
         main_tex.write_text("% TODO: generate LaTeX content", encoding="utf-8")
-    return ExportResponse(path=str(main_tex))
+    zip_path = project_path / "latex_export.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for path in latex_dir.rglob("*"):
+            if path.is_file():
+                zip_file.write(path, path.relative_to(project_path))
+        part4_dir = project_path / "part4"
+        if part4_dir.exists():
+            for path in part4_dir.rglob("*"):
+                if path.is_file() and ("figures" in path.parts or "tables" in path.parts):
+                    zip_file.write(path, path.relative_to(project_path))
+    return FileResponse(str(zip_path), filename="latex_export.zip")
 
 
-@app.get("/api/projects/{project_id}/export/pdf", response_model=ExportResponse)
+@app.get("/api/projects/{project_id}/export/pdf")
 def export_pdf(project_id: int):
     project_path = PROJECTS_DIR / f"project_{project_id}" / "artifacts" / "latex"
     pdf_path = project_path / "main.pdf"
     if pdf_path.exists():
-        return ExportResponse(path=str(pdf_path))
+        return FileResponse(str(pdf_path), filename="main.pdf")
     main_tex = project_path / "main.tex"
     if not main_tex.exists():
         main_tex.write_text("% TODO: generate LaTeX content", encoding="utf-8")
     from shutil import which
 
     if which("latexmk") is None:
-        return ExportResponse(path=str(main_tex), warning="LaTeX not installed")
+        return ExportResponse(path=str(main_tex), warning="latexmk not installed")
     import subprocess
 
     subprocess.run(["latexmk", "-pdf", "main.tex"], cwd=project_path, check=False)
     if pdf_path.exists():
-        return ExportResponse(path=str(pdf_path))
+        return FileResponse(str(pdf_path), filename="main.pdf")
     return ExportResponse(path=str(main_tex), warning="PDF generation failed")
 
 

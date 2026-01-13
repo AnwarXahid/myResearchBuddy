@@ -101,8 +101,9 @@ Overall status: **NO-GO** — implementation does not fully satisfy the spec. Mu
 **Status:** PARTIAL
 
 **Evidence**
-- LaTeX project generation in Final step creates `main.tex` + sections and `references.bib`.【F:backend/app/workflow.py†L130-L168】
-- PDF export attempts `latexmk` and falls back to `.tex` with warning.【F:backend/app/main.py†L330-L351】
+- LaTeX zip export bundles generated LaTeX project and Part 4 figures/tables via `GET /api/projects/{id}/export/latex`.【F:backend/app/main.py†L326-L360】
+- PDF export attempts `latexmk` and returns a warning response when missing via `GET /api/projects/{id}/export/pdf`.【F:backend/app/main.py†L362-L389】
+- UI provides download buttons and PDF warning banner in the artifact viewer area.【F:frontend/src/App.tsx†L400-L470】
 
 **Missing / Partial**
 - LaTeX content is stubbed; no section content from step artifacts.

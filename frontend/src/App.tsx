@@ -71,6 +71,7 @@ function App() {
   )
   const [artifactContent, setArtifactContent] = useState('')
   const [selectedArtifactPath, setSelectedArtifactPath] = useState('')
+  const [pdfWarning, setPdfWarning] = useState('')
 
   const resultsBlocked = selectedStep === 'final' && !artifacts.includes('part4/metrics.json')
   const stepLocked = Boolean(lockedSteps[selectedStep])
@@ -128,6 +129,14 @@ function App() {
       .then(setArtifactContent)
       .catch(() => setArtifactContent('Unable to load artifact'))
   }, [activeProject, selectedArtifactPath])
+
+  useEffect(() => {
+    if (!activeProject) return
+    const pdf = artifacts.find((file) => file.endsWith('.pdf'))
+    if (pdf) {
+      setSelectedArtifactPath(pdf)
+    }
+  }, [activeProject, artifacts])
 
   const createProject = async () => {
     const res = await fetch('/api/projects', {
@@ -214,6 +223,32 @@ function App() {
     })
     const runsRes = await fetch(`/api/projects/${activeProject.id}/steps/${selectedStep}/runs`)
     setRuns(await runsRes.json())
+  }
+
+  const downloadLatex = () => {
+    if (!activeProject) return
+    window.location.href = `/api/projects/${activeProject.id}/export/latex`
+  }
+
+  const downloadPdf = async () => {
+    if (!activeProject) return
+    setPdfWarning('')
+    const res = await fetch(`/api/projects/${activeProject.id}/export/pdf`)
+    const contentType = res.headers.get('content-type') || ''
+    if (contentType.includes('application/pdf')) {
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'main.pdf'
+      link.click()
+      window.URL.revokeObjectURL(url)
+      return
+    }
+    const data = await res.json()
+    if (data.warning) {
+      setPdfWarning(data.warning)
+    }
   }
 
   const planExecution = async () => {
@@ -481,6 +516,15 @@ function App() {
           </div>
           <div className="card">
             <h4>Artifacts</h4>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <button onClick={downloadLatex}>Download LaTeX (.zip)</button>
+              <button onClick={downloadPdf}>Download PDF</button>
+            </div>
+            {pdfWarning && (
+              <div style={{ marginBottom: 8, color: '#b45309' }}>
+                PDF export warning: {pdfWarning}
+              </div>
+            )}
             <div className="tabs">
               <button className="tab" onClick={() => setArtifactTab('markdown')}>Markdown</button>
               <button className="tab" onClick={() => setArtifactTab('json')}>JSON</button>
