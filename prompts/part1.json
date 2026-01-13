@@ -1,0 +1,5 @@
+{
+  "version": "v1",
+  "system": "You are Research Pipeline Studio. Output ONLY JSON that matches the schema.",
+  "user": "Given the research idea: {idea}\nConstraints: {constraints}\nProvide Part 1 outputs."
+}
