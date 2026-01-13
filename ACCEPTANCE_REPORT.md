@@ -82,13 +82,13 @@ Overall status: **NO-GO** — implementation does not fully satisfy the spec. Mu
 
 **Evidence**
 - Citation verification via Crossref in `CitationVerifier.verify` and applied in Part 1 step output.【F:backend/app/citations.py†L8-L47】【F:backend/app/workflow.py†L121-L129】
-- Results gating: Final step adds TODO if `metrics.json` missing; LaTeX results section TODO inserted.【F:backend/app/workflow.py†L130-L168】
+- Results gating: Final step blocks results without `part4/metrics.json` and writes a warning-only Results section.【F:backend/app/workflow.py†L108-L204】
+- Verified-only bibliography is written to `artifacts/latex/references.bib`; unverified citations are written to `artifacts/citations/unverified.md` by default.【F:backend/app/workflow.py†L206-L236】
+- UI provides citation status view and a toggle for including unverified citations in settings.【F:frontend/src/App.tsx†L33-L337】
 
 **Missing / Partial**
 - No Semantic Scholar or arXiv verification options.
-- Unverified citations are **not excluded** from final bibliography; bibliography file is stubbed and not populated with verified-only references.
-- UI warnings for unverified citations or missing metrics are missing.
-- Final step is still callable without metrics; guardrails are informational only.
+- No modal blocking for Final beyond the disabled Run button.
 
 **Reproduction Steps**
 1. Run Part 1 with related work candidates; verify `status` fields in output.
@@ -96,9 +96,7 @@ Overall status: **NO-GO** — implementation does not fully satisfy the spec. Mu
 
 **Minimal Remediation**
 - Add verification sources beyond Crossref and merge results.
-- Generate `references.bib` from verified-only citations.
-- Enforce blocking logic for Results section when `metrics.json` missing.
-- Add UI warnings for missing evidence.
+- Add modal blocking for Final and richer UI warnings for missing evidence.
 
 ---
 

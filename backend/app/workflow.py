@@ -67,6 +67,8 @@ class Part4Output(BaseModel):
 class FinalOutput(BaseModel):
     latex_project_path: str
     notes: str
+    results_allowed: bool = True
+    reason: Optional[str] = None
 
 
 STEP_SCHEMAS: Dict[str, Type[BaseModel]] = {
@@ -101,16 +103,35 @@ def run_step(
     model: str,
     temperature: float,
     max_tokens: int,
+    project_settings: Optional[Dict[str, Any]] = None,
+    citations: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     if step_id not in STEP_IDS:
         raise ValueError("Unknown step")
     prompt = PromptLoader().load(step_id)
+    response_schema = STEP_SCHEMAS[step_id]
+    if step_id == "final":
+        metrics_file = artifacts_dir(project_id) / "part4" / "metrics.json"
+        if not metrics_file.exists():
+            output = {
+                "latex_project_path": str(artifacts_dir(project_id) / "latex"),
+                "notes": "Results blocked: metrics.json not found. Run Part 4 ingestion first.",
+                "results_allowed": False,
+                "reason": "Results blocked: metrics.json not found. Run Part 4 ingestion first.",
+            }
+            _write_latex_project(
+                project_id,
+                results_allowed=False,
+                warning="Results blocked: metrics.json not found. Run Part 4 ingestion first.",
+            )
+            _write_bibliography(project_id, citations or [], project_settings or {})
+            return {"output": output, "prompt_version": prompt.version}
+
     client = get_client(provider)
     messages = [
         {"role": "system", "content": prompt.system},
         {"role": "user", "content": prompt.user.format(**inputs)},
     ]
-    response_schema = STEP_SCHEMAS[step_id]
     output = client.generate(
         messages=messages,
         model=model,
@@ -128,45 +149,78 @@ def run_step(
             verified_candidates.append(merged)
         output["related_work_candidates"] = verified_candidates
     if step_id == "final":
-        metrics_file = artifacts_dir(project_id) / "metrics.json"
-        latex_root = artifacts_dir(project_id) / "latex"
-        sections_dir = latex_root / "sections"
-        sections_dir.mkdir(parents=True, exist_ok=True)
-        results_todo = ""
-        if not metrics_file.exists():
-            results_todo = "\\n% TODO: Results section blocked; metrics.json missing.\\n"
-            output["notes"] += "\nTODO: Results section blocked; metrics.json missing."
-        main_tex = latex_root / "main.tex"
-        main_tex.write_text(
-            "\\\\documentclass{article}\n"
-            "\\\\begin{document}\n"
-            "\\\\input{sections/abstract}\n"
-            "\\\\input{sections/introduction}\n"
-            "\\\\input{sections/method}\n"
-            "\\\\input{sections/results}\n"
-            "\\\\input{sections/discussion}\n"
-            "\\\\input{sections/related_work}\n"
-            "\\\\end{document}\n",
-            encoding="utf-8",
-        )
-        (sections_dir / "abstract.tex").write_text("% TODO: Abstract\n", encoding="utf-8")
-        (sections_dir / "introduction.tex").write_text(
-            "% TODO: Introduction\n", encoding="utf-8"
-        )
-        (sections_dir / "method.tex").write_text("% TODO: Method\n", encoding="utf-8")
-        (sections_dir / "results.tex").write_text(
-            f"% TODO: Results{results_todo}\n",
-            encoding="utf-8",
-        )
-        (sections_dir / "discussion.tex").write_text("% TODO: Discussion\n", encoding="utf-8")
-        (sections_dir / "related_work.tex").write_text(
-            "% TODO: Related Work\n", encoding="utf-8"
-        )
-        (latex_root / "references.bib").write_text(
-            "% Verified references only\n", encoding="utf-8"
-        )
-        output["latex_project_path"] = str(latex_root)
+        output["results_allowed"] = True
+        output["reason"] = None
+        _write_latex_project(project_id, results_allowed=True, warning=None)
+        _write_bibliography(project_id, citations or [], project_settings or {})
+        output["latex_project_path"] = str(artifacts_dir(project_id) / "latex")
     return {"output": output, "prompt_version": prompt.version}
+
+
+def _write_latex_project(
+    project_id: int, results_allowed: bool, warning: Optional[str]
+) -> None:
+    latex_root = artifacts_dir(project_id) / "latex"
+    sections_dir = latex_root / "sections"
+    sections_dir.mkdir(parents=True, exist_ok=True)
+    main_tex = latex_root / "main.tex"
+    main_tex.write_text(
+        "\\\\documentclass{article}\n"
+        "\\\\usepackage{booktabs}\n"
+        "\\\\begin{document}\n"
+        "\\\\input{sections/abstract}\n"
+        "\\\\input{sections/introduction}\n"
+        "\\\\input{sections/method}\n"
+        "\\\\input{sections/results}\n"
+        "\\\\input{sections/discussion}\n"
+        "\\\\input{sections/related_work}\n"
+        "\\\\end{document}\n",
+        encoding="utf-8",
+    )
+    (sections_dir / "abstract.tex").write_text("% TODO: Abstract\n", encoding="utf-8")
+    (sections_dir / "introduction.tex").write_text("% TODO: Introduction\n", encoding="utf-8")
+    (sections_dir / "method.tex").write_text("% TODO: Method\n", encoding="utf-8")
+    if results_allowed:
+        results_body = "% TODO: Results\n"
+    else:
+        banner = warning or "Results blocked: metrics.json not found."
+        results_body = (
+            "% WARNING: Results section is blocked.\n"
+            f"% {banner}\n"
+            "% TODO: Run Part 4 ingestion to enable results.\n"
+        )
+    (sections_dir / "results.tex").write_text(results_body, encoding="utf-8")
+    (sections_dir / "discussion.tex").write_text("% TODO: Discussion\n", encoding="utf-8")
+    (sections_dir / "related_work.tex").write_text("% TODO: Related Work\n", encoding="utf-8")
+
+
+def _write_bibliography(
+    project_id: int,
+    citations: List[Dict[str, Any]],
+    project_settings: Dict[str, Any],
+) -> None:
+    latex_root = artifacts_dir(project_id) / "latex"
+    citations_root = artifacts_dir(project_id) / "citations"
+    citations_root.mkdir(parents=True, exist_ok=True)
+    include_unverified = project_settings.get("include_unverified_citations", False)
+    verified_entries = []
+    unverified_entries = []
+    for citation in citations:
+        status = citation.get("status", "unverified")
+        title = citation.get("title", "Untitled")
+        bibtex = citation.get("bibtex", "")
+        if status == "verified" and bibtex:
+            verified_entries.append(bibtex)
+        else:
+            unverified_entries.append(f"- {title} (UNVERIFIED)")
+            if include_unverified and bibtex:
+                verified_entries.append(f"% UNVERIFIED\n{bibtex}")
+    (latex_root / "references.bib").write_text(
+        "\n".join(verified_entries) + "\n", encoding="utf-8"
+    )
+    (citations_root / "unverified.md").write_text(
+        "\n".join(unverified_entries) + "\n", encoding="utf-8"
+    )
 
 
 def ensure_metrics_artifacts(project_id: int) -> Path:

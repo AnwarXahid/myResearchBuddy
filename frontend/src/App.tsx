@@ -6,6 +6,7 @@ type Project = {
   id: number
   name: string
   description: string
+  settings?: Record<string, unknown>
 }
 
 type StepRun = {
@@ -40,8 +41,18 @@ function App() {
   const [ingestLabel, setIngestLabel] = useState('')
   const [ingestArtifacts, setIngestArtifacts] = useState<string[]>([])
   const [ingestStatus, setIngestStatus] = useState('')
+  const [includeUnverified, setIncludeUnverified] = useState(false)
+  const [citationSummary, setCitationSummary] = useState<{verified: number; unverified: number}>({
+    verified: 0,
+    unverified: 0
+  })
+  const [unverifiedTitles, setUnverifiedTitles] = useState<string[]>([])
 
-  const canRun = useMemo(() => activeProject !== null, [activeProject])
+  const resultsBlocked = selectedStep === 'final' && !artifacts.includes('part4/metrics.json')
+  const canRun = useMemo(
+    () => activeProject !== null && !resultsBlocked,
+    [activeProject, resultsBlocked]
+  )
 
   useEffect(() => {
     fetch('/api/projects')
@@ -52,6 +63,11 @@ function App() {
 
   useEffect(() => {
     if (!activeProject) return
+    fetch(`/api/projects/${activeProject.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setIncludeUnverified(Boolean(data.settings?.include_unverified_citations))
+      })
     fetch(`/api/projects/${activeProject.id}/steps/${selectedStep}/runs`)
       .then((res) => res.json())
       .then(setRuns)
@@ -60,6 +76,24 @@ function App() {
       .then((res) => res.json())
       .then((data) => setArtifacts(data.files ?? []))
       .catch(() => setArtifacts([]))
+    fetch(`/api/projects/${activeProject.id}/steps/part1/runs`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.length) {
+          setCitationSummary({ verified: 0, unverified: 0 })
+          setUnverifiedTitles([])
+          return
+        }
+        const latest = data[0]?.output_json?.related_work_candidates ?? []
+        const verified = latest.filter((item: { status?: string }) => item.status === 'verified')
+        const unverified = latest.filter((item: { status?: string }) => item.status !== 'verified')
+        setCitationSummary({ verified: verified.length, unverified: unverified.length })
+        setUnverifiedTitles(unverified.map((item: { title?: string }) => item.title || 'Untitled'))
+      })
+      .catch(() => {
+        setCitationSummary({ verified: 0, unverified: 0 })
+        setUnverifiedTitles([])
+      })
   }, [activeProject, selectedStep])
 
   const createProject = async () => {
@@ -174,6 +208,16 @@ function App() {
     setArtifacts(artifactsData.files ?? [])
   }
 
+  const updateIncludeUnverified = async (value: boolean) => {
+    if (!activeProject) return
+    setIncludeUnverified(value)
+    await fetch(`/api/projects/${activeProject.id}/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: { include_unverified_citations: value } })
+    })
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -198,6 +242,12 @@ function App() {
       <main className="content">
         <div className="card">
           <h3>{activeProject ? activeProject.name : 'Select a Project'}</h3>
+          <label style={{ marginTop: 8 }}>Include unverified citations</label>
+          <input
+            type="checkbox"
+            checked={includeUnverified}
+            onChange={(e) => updateIncludeUnverified(e.target.checked)}
+          />
           <div className="stepper">
             {steps.map((step) => (
               <span
@@ -238,7 +288,9 @@ function App() {
             <label>Inputs (JSON)</label>
             <textarea value={inputs} onChange={(e) => setInputs(e.target.value)} rows={6} />
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button onClick={runStep} disabled={!canRun}>Run</button>
+              <button onClick={runStep} disabled={!canRun}>
+                {resultsBlocked ? 'Run (blocked)' : 'Run'}
+              </button>
               <button onClick={approveStep}>Approve</button>
               <button onClick={unlockStep}>Unlock</button>
             </div>
@@ -275,6 +327,18 @@ function App() {
             </ul>
           </div>
         </div>
+        <div className="card">
+          <h4>Citation Status</h4>
+          <div>Verified: {citationSummary.verified}</div>
+          <div>Unverified: {citationSummary.unverified}</div>
+          {unverifiedTitles.length > 0 && (
+            <ul>
+              {unverifiedTitles.map((title) => (
+                <li key={title}>{title} (UNVERIFIED)</li>
+              ))}
+            </ul>
+          )}
+        </div>
         {selectedStep === 'part4' && (
           <div className="card">
             <h4>Part 4 Ingestion</h4>
@@ -295,6 +359,13 @@ function App() {
                 <li key={artifact}>{artifact}</li>
               ))}
             </ul>
+          </div>
+        )}
+        {selectedStep === 'final' && !artifacts.includes('part4/metrics.json') && (
+          <div className="card" style={{ border: '1px solid #dc2626' }}>
+            <h4>Results blocked</h4>
+            <p>Metrics not found. Run Part 4 ingestion to enable Results.</p>
+            <button onClick={() => setSelectedStep('part4')}>Go to Part 4</button>
           </div>
         )}
         <div className="card">

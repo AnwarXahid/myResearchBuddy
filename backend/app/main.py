@@ -59,7 +59,11 @@ def health_check() -> Dict[str, str]:
 
 @app.post("/api/projects", response_model=ProjectRead)
 def create_project(payload: ProjectCreate, session: Session = Depends(get_session)):
-    project = Project(name=payload.name, description=payload.description)
+    project = Project(
+        name=payload.name,
+        description=payload.description,
+        settings_json=json.dumps({"include_unverified_citations": False}),
+    )
     session.add(project)
     session.commit()
     session.refresh(project)
@@ -171,6 +175,17 @@ def run_project_step(
     ).first()
     if state and state.locked:
         raise HTTPException(status_code=400, detail="Step is locked")
+    project = session.get(Project, project_id)
+    project_settings = json.loads(project.settings_json) if project else {}
+    citations = []
+    if step_id == "final":
+        part1_run = session.exec(
+            select(StepRun)
+            .where(StepRun.project_id == project_id, StepRun.step_id == "part1")
+            .order_by(StepRun.created_at.desc())
+        ).first()
+        if part1_run:
+            citations = json.loads(part1_run.output_json).get("related_work_candidates", [])
     run = run_step(
         project_id=project_id,
         step_id=step_id,
@@ -179,6 +194,8 @@ def run_project_step(
         model=payload.model,
         temperature=payload.temperature,
         max_tokens=payload.max_tokens,
+        project_settings=project_settings,
+        citations=citations,
     )
     step_run = StepRun(
         project_id=project_id,

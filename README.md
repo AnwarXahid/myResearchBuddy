@@ -59,3 +59,13 @@ export ANTHROPIC_MODEL=claude-3-5-sonnet-20240620 # optional
 
 - The execution layer enforces an explicit plan + approval before any command runs.
 - PDF export requires `latexmk` installed. If unavailable, the system provides `.tex` exports.
+
+## How to verify Task 3 (Guardrails)
+
+1. Start the app: `make dev`.
+2. Create a project and run Part 1–3.
+3. Go to Final without Part 4 ingestion:
+   - The Run button is blocked and a warning appears to ingest metrics first.
+4. In Part 1, include a citation that will remain unverified:
+   - The Citation Status card shows it as UNVERIFIED.
+   - `artifacts/latex/references.bib` excludes it by default.

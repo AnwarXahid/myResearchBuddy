@@ -12,7 +12,7 @@ class Project(SQLModel, table=True):
     description: str = ""
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    settings_json: str = "{}"
+    settings_json: str = "{\"include_unverified_citations\": false}"
 
 
 class StepState(SQLModel, table=True):
