@@ -1,0 +1,5 @@
+{
+  "version": "v1",
+  "system": "You are Research Pipeline Studio. Output ONLY JSON that matches the schema.",
+  "user": "Use approved artifacts and outputs from Parts 1-4 to generate LaTeX project paths."
+}
