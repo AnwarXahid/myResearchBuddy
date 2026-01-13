@@ -496,10 +496,30 @@ def execution_status(
 
 
 @app.post("/api/projects/{project_id}/executions/{execution_id}/cancel")
-def cancel_execution(project_id: int, execution_id: int):
-    return {"status": "cancel_requested", "execution_id": execution_id}
+def cancel_execution(project_id: int, execution_id: int, session: Session = Depends(get_session)):
+    execution = session.get(Execution, execution_id)
+    if not execution or execution.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Execution not found")
+    plan = session.get(ExecutionPlan, execution.plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    context = json.loads(plan.context_json) if plan.context_json else {}
+    runner = get_runner(plan.runner, context.get("cluster_profile", {}))
+    runner.cancel(execution, plan, session)
+    return {"status": execution.status, "execution_id": execution.id}
 
 
 @app.post("/api/projects/{project_id}/executions/{execution_id}/collect")
-def collect_execution_artifacts(project_id: int, execution_id: int):
-    return {"status": "collection_started", "execution_id": execution_id}
+def collect_execution_artifacts(
+    project_id: int, execution_id: int, session: Session = Depends(get_session)
+):
+    execution = session.get(Execution, execution_id)
+    if not execution or execution.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Execution not found")
+    plan = session.get(ExecutionPlan, execution.plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    context = json.loads(plan.context_json) if plan.context_json else {}
+    runner = get_runner(plan.runner, context.get("cluster_profile", {}))
+    files = runner.collect_artifacts(plan, execution)
+    return {"status": "collected", "files": files}

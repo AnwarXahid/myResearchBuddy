@@ -37,6 +37,20 @@ function App() {
   const [planWarnings, setPlanWarnings] = useState<string[]>([])
   const [execStatus, setExecStatus] = useState<string>('')
   const [execLogs, setExecLogs] = useState<string>('')
+  const [clusterHost, setClusterHost] = useState('')
+  const [clusterPort, setClusterPort] = useState(22)
+  const [clusterUser, setClusterUser] = useState('')
+  const [clusterKeyPath, setClusterKeyPath] = useState('')
+  const [clusterRemoteDir, setClusterRemoteDir] = useState('')
+  const [clusterPartition, setClusterPartition] = useState('')
+  const [clusterTime, setClusterTime] = useState('')
+  const [clusterMem, setClusterMem] = useState('')
+  const [clusterCpus, setClusterCpus] = useState('')
+  const [clusterGres, setClusterGres] = useState('')
+  const [clusterEnvInit, setClusterEnvInit] = useState('')
+  const [clusterUploads, setClusterUploads] = useState('')
+  const [clusterDownloads, setClusterDownloads] = useState('')
+  const [executionId, setExecutionId] = useState<number | null>(null)
   const [ingestFile, setIngestFile] = useState<File | null>(null)
   const [ingestLabel, setIngestLabel] = useState('')
   const [ingestArtifacts, setIngestArtifacts] = useState<string[]>([])
@@ -149,13 +163,42 @@ function App() {
 
   const planExecution = async () => {
     if (!activeProject) return
+    const parsePairs = (value: string) =>
+      value
+        .split('\n')
+        .map((line) => line.split('|').map((part) => part.trim()))
+        .filter((parts) => parts.length === 2 && parts[0] && parts[1])
+        .map(([local, remote]) => ({ local, remote }))
     const res = await fetch(`/api/projects/${activeProject.id}/executions/plan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         runner,
         commands: commands.split('\n').filter(Boolean),
-        context: {}
+        context: {
+          cluster_profile: {
+            host: clusterHost,
+            port: clusterPort,
+            username: clusterUser,
+            key_path: clusterKeyPath,
+            remote_base_dir: clusterRemoteDir,
+            defaults: {
+              partition: clusterPartition,
+              time: clusterTime,
+              mem: clusterMem,
+              cpus: clusterCpus,
+              gres: clusterGres
+            },
+            env_init_commands: clusterEnvInit
+              .split('\n')
+              .map((line) => line.trim())
+              .filter(Boolean)
+          },
+          staging: {
+            upload: parsePairs(clusterUploads),
+            download: parsePairs(clusterDownloads)
+          }
+        }
       })
     })
     const data = await res.json()
@@ -179,9 +222,42 @@ function App() {
     })
     const data = await res.json()
     setExecStatus(`${data.status} (exit ${data.exit_code ?? 'n/a'})`)
+    setExecutionId(data.execution_id)
     const logsRes = await fetch(`/api/projects/${activeProject.id}/executions/${data.execution_id}/logs`)
     const logsData = await logsRes.json()
     setExecLogs(`${logsData.stdout}\\n${logsData.stderr}`)
+  }
+
+  const refreshExecutionStatus = async () => {
+    if (!activeProject || !executionId) return
+    const res = await fetch(
+      `/api/projects/${activeProject.id}/executions/${executionId}/status`
+    )
+    const data = await res.json()
+    setExecStatus(`${data.status} (exit ${data.exit_code ?? 'n/a'})`)
+  }
+
+  const cancelExecution = async () => {
+    if (!activeProject || !executionId) return
+    await fetch(`/api/projects/${activeProject.id}/executions/${executionId}/cancel`, {
+      method: 'POST'
+    })
+    setExecStatus('cancelled')
+  }
+
+  const collectExecution = async () => {
+    if (!activeProject || !executionId) return
+    const res = await fetch(`/api/projects/${activeProject.id}/executions/${executionId}/collect`, {
+      method: 'POST'
+    })
+    const data = await res.json()
+    setExecStatus(data.status || execStatus)
+    const artifactsRes = await fetch(`/api/projects/${activeProject.id}/artifacts`)
+    const artifactsData = await artifactsRes.json()
+    setArtifacts(artifactsData.files ?? [])
+    if (data.files) {
+      setExecLogs(`${execLogs}\\nCollected: ${data.files.join(', ')}`)
+    }
   }
 
   const ingestMetrics = async () => {
@@ -370,6 +446,59 @@ function App() {
         )}
         <div className="card">
           <h4>Execution (Plan → Approve → Run)</h4>
+          {selectedStep === 'part4' && (
+            <>
+              <h5>Cluster Profile</h5>
+              <label>Host</label>
+              <input value={clusterHost} onChange={(e) => setClusterHost(e.target.value)} />
+              <label>Port</label>
+              <input
+                type="number"
+                value={clusterPort}
+                onChange={(e) => setClusterPort(Number(e.target.value))}
+              />
+              <label>Username</label>
+              <input value={clusterUser} onChange={(e) => setClusterUser(e.target.value)} />
+              <label>SSH Key Path</label>
+              <input value={clusterKeyPath} onChange={(e) => setClusterKeyPath(e.target.value)} />
+              <label>Remote Base Dir</label>
+              <input
+                value={clusterRemoteDir}
+                onChange={(e) => setClusterRemoteDir(e.target.value)}
+              />
+              <label>Partition</label>
+              <input
+                value={clusterPartition}
+                onChange={(e) => setClusterPartition(e.target.value)}
+              />
+              <label>Time</label>
+              <input value={clusterTime} onChange={(e) => setClusterTime(e.target.value)} />
+              <label>Memory</label>
+              <input value={clusterMem} onChange={(e) => setClusterMem(e.target.value)} />
+              <label>CPUs</label>
+              <input value={clusterCpus} onChange={(e) => setClusterCpus(e.target.value)} />
+              <label>GRES</label>
+              <input value={clusterGres} onChange={(e) => setClusterGres(e.target.value)} />
+              <label>Env Init Commands (one per line)</label>
+              <textarea
+                value={clusterEnvInit}
+                onChange={(e) => setClusterEnvInit(e.target.value)}
+                rows={3}
+              />
+              <label>Upload Mappings (local|remote per line)</label>
+              <textarea
+                value={clusterUploads}
+                onChange={(e) => setClusterUploads(e.target.value)}
+                rows={3}
+              />
+              <label>Download Mappings (local|remote per line)</label>
+              <textarea
+                value={clusterDownloads}
+                onChange={(e) => setClusterDownloads(e.target.value)}
+                rows={3}
+              />
+            </>
+          )}
           <label>Runner</label>
           <select value={runner} onChange={(e) => setRunner(e.target.value)}>
             <option value="local">Local</option>
@@ -382,6 +511,9 @@ function App() {
             <button onClick={planExecution}>Plan</button>
             <button onClick={approvePlan}>Approve</button>
             <button onClick={runExecution}>Approve &amp; Run</button>
+            <button onClick={refreshExecutionStatus}>Status</button>
+            <button onClick={cancelExecution}>Cancel</button>
+            <button onClick={collectExecution}>Collect</button>
           </div>
           {planWarnings.length > 0 && (
             <div style={{ marginTop: 8, color: '#b91c1c' }}>
