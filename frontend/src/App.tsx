@@ -13,6 +13,8 @@ type StepRun = {
   id: number
   created_at: string
   output_json: Record<string, unknown>
+  provider?: string
+  model?: string
 }
 
 function App() {
@@ -61,11 +63,20 @@ function App() {
     unverified: 0
   })
   const [unverifiedTitles, setUnverifiedTitles] = useState<string[]>([])
+  const [editorMode, setEditorMode] = useState<'json' | 'markdown'>('json')
+  const [isEditing, setIsEditing] = useState(false)
+  const [lockedSteps, setLockedSteps] = useState<Record<string, boolean>>({})
+  const [artifactTab, setArtifactTab] = useState<'markdown' | 'json' | 'citations' | 'latex' | 'pdf'>(
+    'markdown'
+  )
+  const [artifactContent, setArtifactContent] = useState('')
+  const [selectedArtifactPath, setSelectedArtifactPath] = useState('')
 
   const resultsBlocked = selectedStep === 'final' && !artifacts.includes('part4/metrics.json')
+  const stepLocked = Boolean(lockedSteps[selectedStep])
   const canRun = useMemo(
-    () => activeProject !== null && !resultsBlocked,
-    [activeProject, resultsBlocked]
+    () => activeProject !== null && !resultsBlocked && !stepLocked,
+    [activeProject, resultsBlocked, stepLocked]
   )
 
   useEffect(() => {
@@ -110,6 +121,14 @@ function App() {
       })
   }, [activeProject, selectedStep])
 
+  useEffect(() => {
+    if (!activeProject || !selectedArtifactPath) return
+    fetch(`/api/projects/${activeProject.id}/artifacts/content?path=${selectedArtifactPath}`)
+      .then((res) => res.text())
+      .then(setArtifactContent)
+      .catch(() => setArtifactContent('Unable to load artifact'))
+  }, [activeProject, selectedArtifactPath])
+
   const createProject = async () => {
     const res = await fetch('/api/projects', {
       method: 'POST',
@@ -142,14 +161,34 @@ function App() {
     setRuns(await runsRes.json())
   }
 
+  const saveEdit = async () => {
+    if (!activeProject) return
+    let payload: Record<string, unknown>
+    if (editorMode === 'json') {
+      payload = JSON.parse(stepOutput || '{}')
+    } else {
+      payload = { markdown: stepOutput }
+    }
+    await fetch(`/api/projects/${activeProject.id}/steps/${selectedStep}/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ output: payload, notes: 'manual edit' })
+    })
+    setIsEditing(false)
+    const runsRes = await fetch(`/api/projects/${activeProject.id}/steps/${selectedStep}/runs`)
+    setRuns(await runsRes.json())
+  }
+
   const approveStep = async () => {
     if (!activeProject) return
     await fetch(`/api/projects/${activeProject.id}/steps/${selectedStep}/approve`, { method: 'POST' })
+    setLockedSteps((prev) => ({ ...prev, [selectedStep]: true }))
   }
 
   const unlockStep = async () => {
     if (!activeProject) return
     await fetch(`/api/projects/${activeProject.id}/steps/${selectedStep}/unlock`, { method: 'POST' })
+    setLockedSteps((prev) => ({ ...prev, [selectedStep]: false }))
   }
 
   const loadDiff = async () => {
@@ -159,6 +198,22 @@ function App() {
     )
     const data = await res.json()
     setDiff(data.diff || [])
+  }
+
+  const loadRunOutput = (run: StepRun) => {
+    setStepOutput(JSON.stringify(run.output_json, null, 2))
+    setIsEditing(false)
+  }
+
+  const rollbackRun = async (run: StepRun) => {
+    if (!activeProject) return
+    await fetch(`/api/projects/${activeProject.id}/steps/${selectedStep}/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ output: run.output_json, notes: `rollback to ${run.id}` })
+    })
+    const runsRes = await fetch(`/api/projects/${activeProject.id}/steps/${selectedStep}/runs`)
+    setRuns(await runsRes.json())
   }
 
   const planExecution = async () => {
@@ -367,18 +422,48 @@ function App() {
               <button onClick={runStep} disabled={!canRun}>
                 {resultsBlocked ? 'Run (blocked)' : 'Run'}
               </button>
+              <button onClick={runStep} disabled={!canRun}>
+                Re-run
+              </button>
               <button onClick={approveStep}>Approve</button>
               <button onClick={unlockStep}>Unlock</button>
             </div>
+            {stepLocked && <div style={{ marginTop: 8 }}>Status: Locked</div>}
           </div>
           <div className="card">
             <h4>Output</h4>
+            <label>Editor Mode</label>
+            <select
+              value={editorMode}
+              onChange={(e) => setEditorMode(e.target.value as 'json' | 'markdown')}
+            >
+              <option value="json">JSON</option>
+              <option value="markdown">Markdown</option>
+            </select>
             <textarea value={stepOutput} onChange={(e) => setStepOutput(e.target.value)} rows={16} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button onClick={() => setIsEditing(true)}>Edit</button>
+              <button onClick={saveEdit} disabled={!isEditing}>
+                Save
+              </button>
+            </div>
           </div>
         </div>
         <div className="grid">
           <div className="card">
             <h4>Run History</h4>
+            <ul>
+              {runs.map((run) => (
+                <li key={run.id}>
+                  <strong>Run {run.id}</strong> — {new Date(run.created_at).toLocaleString()} (
+                  {run.provider}/{run.model})
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <button onClick={() => loadRunOutput(run)}>Load</button>
+                    <button onClick={() => rollbackRun(run)}>Rollback</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
             <select onChange={(e) => setSelectedRuns((prev) => ({ ...prev, a: Number(e.target.value) }))}>
               <option>Select Run A</option>
               {runs.map((run) => (
@@ -396,24 +481,46 @@ function App() {
           </div>
           <div className="card">
             <h4>Artifacts</h4>
-            <ul>
+            <div className="tabs">
+              <button className="tab" onClick={() => setArtifactTab('markdown')}>Markdown</button>
+              <button className="tab" onClick={() => setArtifactTab('json')}>JSON</button>
+              <button className="tab" onClick={() => setArtifactTab('citations')}>Citation Status</button>
+              <button className="tab" onClick={() => setArtifactTab('latex')}>LaTeX</button>
+              <button className="tab" onClick={() => setArtifactTab('pdf')}>PDF</button>
+            </div>
+            <select
+              value={selectedArtifactPath}
+              onChange={(e) => setSelectedArtifactPath(e.target.value)}
+            >
+              <option value="">Select artifact</option>
               {artifacts.map((file) => (
-                <li key={file}>{file}</li>
+                <option key={file} value={file}>{file}</option>
               ))}
-            </ul>
+            </select>
+            {artifactTab === 'markdown' && <pre>{artifactContent}</pre>}
+            {artifactTab === 'json' && <pre>{artifactContent}</pre>}
+            {artifactTab === 'latex' && <pre>{artifactContent}</pre>}
+            {artifactTab === 'citations' && (
+              <>
+                <div>Verified: {citationSummary.verified}</div>
+                <div>Unverified: {citationSummary.unverified}</div>
+                {unverifiedTitles.length > 0 && (
+                  <ul>
+                    {unverifiedTitles.map((title) => (
+                      <li key={title}>{title} (UNVERIFIED)</li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+            {artifactTab === 'pdf' && selectedArtifactPath.endsWith('.pdf') && (
+              <iframe
+                title="pdf-preview"
+                src={`/api/projects/${activeProject?.id}/artifacts/file?path=${selectedArtifactPath}`}
+                style={{ width: '100%', height: 400, border: '1px solid #e2e8f0' }}
+              />
+            )}
           </div>
-        </div>
-        <div className="card">
-          <h4>Citation Status</h4>
-          <div>Verified: {citationSummary.verified}</div>
-          <div>Unverified: {citationSummary.unverified}</div>
-          {unverifiedTitles.length > 0 && (
-            <ul>
-              {unverifiedTitles.map((title) => (
-                <li key={title}>{title} (UNVERIFIED)</li>
-              ))}
-            </ul>
-          )}
         </div>
         {selectedStep === 'part4' && (
           <div className="card">

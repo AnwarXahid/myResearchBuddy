@@ -28,17 +28,14 @@ Overall status: **NO-GO** — implementation does not fully satisfy the spec. Mu
 **Status:** PARTIAL
 
 **Evidence**
-- Project list & create: present in `frontend/src/App.tsx` sidebar and `POST /api/projects` in backend.【F:frontend/src/App.tsx†L151-L168】【F:backend/app/main.py†L54-L83】
-- Stepper in workspace: present in `App.tsx` stepper UI.【F:frontend/src/App.tsx†L171-L185】
-- Per-step controls: **Run** + **Approve** + **Unlock** present.【F:frontend/src/App.tsx†L187-L217】
-- Run history + diff viewer: present in UI and backend diff route.【F:frontend/src/App.tsx†L223-L239】【F:backend/app/main.py†L246-L280】
-- Artifact viewer: present only as a plain list (no tabs for Markdown/JSON/LaTeX/PDF).【F:frontend/src/App.tsx†L241-L248】
+- Project list & create: present in `frontend/src/App.tsx` sidebar and `POST /api/projects` in backend.【F:frontend/src/App.tsx†L223-L239】【F:backend/app/main.py†L59-L89】
+- Stepper in workspace: present in `App.tsx` stepper UI.【F:frontend/src/App.tsx†L319-L337】
+- Per-step controls: **Run**/**Re-run**, **Edit/Save**, **Approve/Lock**, **Unlock** with locked status indicator.【F:frontend/src/App.tsx†L264-L377】
+- Run history with timestamps/provider/model, diff viewer, and rollback action (via edit) are present in UI and backend diff route.【F:frontend/src/App.tsx†L379-L475】【F:backend/app/main.py†L302-L317】
+- Artifact viewer tabs for Markdown/JSON/Citation Status/LaTeX/PDF preview are available with artifact selection and content display.【F:frontend/src/App.tsx†L400-L474】【F:backend/app/main.py†L350-L374】
 
 **Missing / Partial**
-- **Edit step outputs in UI**: no inline editor + save; backend supports `/edit` but UI does not call it.
-- **Re-run and rollback**: no explicit “set current run”/rollback control; backend has run history but no rollback endpoint.
-- **Approval/lock state visibility**: not shown in UI.
-- **Project workspace layout with left settings / right artifact tabs**: not implemented.
+- Rollback creates a new manual edit run rather than reassigning an existing run as current (no dedicated rollback endpoint).
 
 **Reproduction Steps**
 1. `make dev`

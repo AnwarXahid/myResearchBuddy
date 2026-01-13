@@ -69,3 +69,15 @@ export ANTHROPIC_MODEL=claude-3-5-sonnet-20240620 # optional
 4. In Part 1, include a citation that will remain unverified:
    - The Citation Status card shows it as UNVERIFIED.
    - `artifacts/latex/references.bib` excludes it by default.
+
+## How to verify Task 5 (UI workflow + artifacts)
+
+1. Start the app: `make dev`.
+2. Create a project and select Part 1.
+3. Click **Run**, then **Approve** to lock it; confirm the Run button disables and “Locked” status appears.
+4. Click **Unlock**, then **Re-run** to create a new run.
+5. Use the **Run History** list:
+   - Click **Load** to view an older run in the output editor.
+   - Click **Rollback** to set an older run as the active output (via a manual edit run).
+6. In the Artifact viewer, switch tabs (Markdown/JSON/Citation Status/LaTeX/PDF) and select artifacts from the dropdown.
+   - If a PDF artifact exists, it should render in the PDF tab.

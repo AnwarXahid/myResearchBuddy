@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, PlainTextResponse
 from sqlmodel import Session, select
 
 from .config import PROJECTS_DIR
@@ -367,6 +368,28 @@ def ingest_project_metrics(
 @app.get("/api/projects/{project_id}/artifacts", response_model=ArtifactListing)
 def list_project_artifacts(project_id: int):
     return ArtifactListing(files=list_artifacts(project_id))
+
+
+@app.get("/api/projects/{project_id}/artifacts/content")
+def read_artifact_content(project_id: int, path: str):
+    base = artifacts_dir(project_id).resolve()
+    target = (base / path).resolve()
+    if base not in target.parents and target != base:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    return PlainTextResponse(target.read_text(encoding="utf-8"))
+
+
+@app.get("/api/projects/{project_id}/artifacts/file")
+def read_artifact_file(project_id: int, path: str):
+    base = artifacts_dir(project_id).resolve()
+    target = (base / path).resolve()
+    if base not in target.parents and target != base:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    return FileResponse(str(target))
 
 
 @app.get("/api/projects/{project_id}/export/latex", response_model=ExportResponse)
