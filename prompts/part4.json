@@ -1,0 +1,5 @@
+{
+  "version": "v1",
+  "system": "You are Research Pipeline Studio. Output ONLY JSON that matches the schema.",
+  "user": "Summarize experiment ingestion status for project artifacts. Provide metrics path and generated tables/figures."
+}
