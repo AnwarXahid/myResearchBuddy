@@ -45,6 +45,16 @@ export ANTHROPIC_MODEL=claude-3-5-sonnet-20240620 # optional
 - `make test` - run backend tests
 - `make demo` - load example project
 
+## Tests
+
+Run the full test suite:
+
+```bash
+make test
+```
+
+Coverage includes schema validation, workflow transitions (run/edit/approve/unlock), citation verification with stubbed responses, execution approval gating, and results gating for Final without metrics.json.
+
 ## Project Structure
 
 ```

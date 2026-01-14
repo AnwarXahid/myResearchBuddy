@@ -170,6 +170,7 @@ Overall status: **NO-GO** — implementation does not fully satisfy the spec. Mu
 - Workflow lock/approve/unlock tests.【F:backend/tests/test_workflow.py†L1-L26】
 - Citation verifier error handling test with stubbed HTTP error.【F:backend/tests/test_citations.py†L1-L13】
 - Execution plan approval gating test.【F:backend/tests/test_execution.py†L1-L20】
+- Results gating test ensures Final blocks without metrics.json.【F:backend/tests/test_results_gating.py†L1-L23】
 
 **Reproduction Steps**
 1. `make test`
