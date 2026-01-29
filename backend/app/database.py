@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, create_engine, Session
 
 from .config import DATA_DIR
 
-DB_PATH = DATA_DIR / "research_pipeline.db"
+DB_PATH = DATA_DIR / "research_progress.db"
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False, connect_args={"check_same_thread": False})
 
 
