@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Research Progress Tracker</title>
+    <style>
+      body { margin: 0; font-family: "Inter", system-ui, sans-serif; background: #f5f7fb; }
+      .app { display: flex; min-height: 100vh; }
+      .sidebar { width: 280px; background: #0f172a; color: white; padding: 24px; }
+      .content { flex: 1; padding: 24px; }
+      .card { background: white; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px; }
+      button { background: #2563eb; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+      input, textarea, select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; }
+      .stage { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+      .stage:last-child { border-bottom: none; }
+      .pill { padding: 4px 8px; border-radius: 999px; font-size: 12px; }
+      .pill.done { background: #bbf7d0; color: #166534; }
+      .pill.todo { background: #fee2e2; color: #991b1b; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
